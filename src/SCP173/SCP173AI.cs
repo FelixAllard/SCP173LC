@@ -113,7 +113,8 @@ public class Scp173AI : ModEnemyAI
     {
         public override List<AIStateTransition> Transitions { get; set; } =
             [
-                new SnappingNeck()
+                new SnappingNeck(),
+                new LostTarget()
             ];
 
         public override void OnStateEntered(Animator creatureAnimator)
@@ -145,6 +146,7 @@ public class Scp173AI : ModEnemyAI
             private bool shouldSync = true;
             public override bool CanTransitionBeTaken()
             {
+                //TODO Needs to run faster! WAY faster!
                 var transform1 = self.agent.transform;
                 var position = transform1.position;
                 var destination1 = self.agent.destination;
@@ -168,7 +170,7 @@ public class Scp173AI : ModEnemyAI
                     shouldSync = true;
                     self.agent.Warp(newPosition);
                     self.agent.transform.rotation = Quaternion.LookRotation(direction);
-                    if (Vector3.Distance(self.agent.transform.position, self.agent.destination) < 0.3f)
+                    if (self.agent.remainingDistance<=0.3f)
                     {
                         return true;
                     }
