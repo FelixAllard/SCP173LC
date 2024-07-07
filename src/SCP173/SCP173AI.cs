@@ -48,6 +48,10 @@ public class Scp173AI : ModEnemyAI
 
         public override void OnStateEntered(Animator creatureAnimator)
         {
+            if (!self.IsHost)
+            {
+                return;
+            }
             self.targetPlayer = null;
             agent.ResetPath();
             Vector3 possibleTp =  RoundManager.Instance.insideAINodes
@@ -78,6 +82,10 @@ public class Scp173AI : ModEnemyAI
             public override bool CanTransitionBeTaken()
             {
                 //IfIsClose enough to destination
+                if (!self.IsHost)
+                {
+                    return false;
+                }
                 self.targetPlayer = self.CheckIfAPlayerHasLineOfSight();
                 if(self.targetPlayer!=null)
                     return true;
@@ -125,6 +133,10 @@ public class Scp173AI : ModEnemyAI
 
         public override void AIInterval(Animator creatureAnimator)
         {
+            if (!self.IsHost)
+            {
+                return;
+            }
             if (!self.targetPlayer.HasLineOfSightToPosition(self.transform.position))
             {
                 PlayerControllerB? playerWhoSaw = self.CheckIfAPlayerHasLineOfSight();
@@ -138,13 +150,22 @@ public class Scp173AI : ModEnemyAI
 
         public override void OnStateExit(Animator creatureAnimator)
         {
-            
+            self.creatureSFX.PlayOneShot(self.snapNeck[UnityEngine.Random.Range(0, self.snapNeck.Length)]);
+                
+            self.targetPlayer.DamagePlayerServerRpc(100,0);
+            //self.targetPlayer.KillPlayer(new Vector3(),true, CauseOfDeath.Strangulation, 1);
+            self.targetPlayer = null;
         }
         internal class SnappingNeck : AIStateTransition
         {
+            
             private bool shouldSync = true;
             public override bool CanTransitionBeTaken()
             {
+                if (!self.IsHost)
+                {
+                    return false;
+                }
                 if (self.CheckIfAPlayerHasLineOfSight())
                 {
                     return false;
@@ -220,10 +241,7 @@ public class Scp173AI : ModEnemyAI
 
             public override AIBehaviorState NextState()
             {
-                self.creatureSFX.PlayOneShot(self.snapNeck[UnityEngine.Random.Range(0, self.snapNeck.Length)]);
-                self.targetPlayer.DamagePlayerServerRpc(100,0);
-                //self.targetPlayer.KillPlayer(new Vector3(),true, CauseOfDeath.Strangulation, 1);
-                self.targetPlayer = null;
+                
                 return new JustKilledSomeone();
             }
         }
@@ -231,6 +249,10 @@ public class Scp173AI : ModEnemyAI
         {
             public override bool CanTransitionBeTaken()
             {
+                if (!self.IsHost)
+                {
+                    return false;
+                }
                 if (self.targetPlayer == null)
                 {
                     return true;
