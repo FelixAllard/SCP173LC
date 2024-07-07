@@ -150,63 +150,64 @@ public class Scp173AI : ModEnemyAI
                     return false;
                 }
 
-                var transform1 = self.agent.transform;
-                var position = transform1.position;
-                var destination1 = self.targetPlayer.transform.position;
-                Vector3 direction = (destination1 - position).normalized;
-                float remainingDistance = Vector3.Distance(position, destination1);
-                float increment = 0.5f;
-                Vector3 lastUnseenPosition = position;
+                NavMeshPath path = new NavMeshPath();
+                self.agent.CalculatePath(self.targetPlayer.transform.position, path);
 
-                while (remainingDistance > 0)
+                if (path.corners.Length < 2)
                 {
-                    float moveDistance = Mathf.Min(increment, remainingDistance);
-                    Vector3 newPosition = position + direction * moveDistance;
-                    remainingDistance -= moveDistance;
-
-                    if (NavMesh.SamplePosition(newPosition, out NavMeshHit hit, increment, NavMesh.AllAreas))
-                    {
-                        newPosition = hit.position;
-                    }
-                    else
-                    {
-                        Plugin.Logger.LogError("New position is not on the NavMesh.");
-                        break;
-                    }
-
-                    if (self.CheckIfAPlayerHasLineOfSight() == null && !self.AnyPlayerHasLineOfSightToPosition(newPosition))
-                    {
-                        lastUnseenPosition = newPosition;
-                    }
-                    else
-                    {
-                        break;
-                    }
-
-                    position = newPosition;
-                    direction = (destination1 - position).normalized; // Update direction
+                    return false; // No valid path
                 }
-                if (lastUnseenPosition != transform1.position)
+
+                Vector3 lastUnseenPosition = self.agent.transform.position;
+
+                for (int i = 0; i < path.corners.Length - 1; i++)
+                {
+                    Vector3 start = path.corners[i];
+                    Vector3 end = path.corners[i + 1];
+                    Vector3 direction = (end - start).normalized;
+                    float segmentDistance = Vector3.Distance(start, end);
+                    float remainingDistance = segmentDistance;
+
+                    while (remainingDistance > 0)
+                    {
+                        float moveDistance = Mathf.Min(0.5f, remainingDistance);
+                        Vector3 newPosition = start + direction * (segmentDistance - remainingDistance + moveDistance);
+                        remainingDistance -= moveDistance;
+
+                        if (NavMesh.SamplePosition(newPosition, out NavMeshHit hit, 0.5f, NavMesh.AllAreas))
+                        {
+                            newPosition = hit.position;
+                        }
+                        else
+                        {
+                            Plugin.Logger.LogError("New position is not on the NavMesh.");
+                            break;
+                        }
+
+                        if (!self.AnyPlayerHasLineOfSightToPosition(newPosition))
+                        {
+                            lastUnseenPosition = newPosition;
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+
+                    if (self.AnyPlayerHasLineOfSightToPosition(lastUnseenPosition))
+                    {
+                        break;
+                    }
+                }
+
+                if (lastUnseenPosition != self.agent.transform.position)
                 {
                     shouldSync = true;
                     self.agent.Warp(lastUnseenPosition);
-                    // Calculate the direction to the destination
-                    Vector3 direction2 = destination1 - lastUnseenPosition;
-
-                    // Zero out the Y component to only consider horizontal direction
-                    direction2.y = 0;
-
-                    // Create the rotation based on the horizontal direction
-                    Quaternion targetRotation = Quaternion.LookRotation(direction2);
-
-                    // Apply the rotation to the agent, maintaining its current vertical rotation
-                    self.agent.transform.rotation = Quaternion.Euler(0, targetRotation.eulerAngles.y, 0);
-                    self.SyncPositionToClients();
-                    if (Vector3.Distance(self.targetPlayer.transform.position, self.transform.position) <= 0.2)
-                    {
-                        return true;
-                    }
+                    RotateAgentTowardsTarget(self.targetPlayer.transform.position);
+                    return true;
                 }
+
                 return false;
             }
             void RotateAgentTowardsTarget(Vector3 targetPosition)
