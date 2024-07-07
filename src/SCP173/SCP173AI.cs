@@ -315,7 +315,7 @@ public class Scp173AI : ModEnemyAI
 
     private PlayerControllerB? CheckIfAPlayerHasLineOfSight()
     {
-        foreach (var player in RoundManager.Instance.playersManager.allPlayerScripts.Where(p =>p.isPlayerControlled))
+        foreach (var player in RoundManager.Instance.playersManager.allPlayerScripts.Where(p =>p.isPlayerControlled && !p.isPlayerDead))
         {
             if (player.HasLineOfSightToPosition(transform.position))
             {
@@ -327,7 +327,7 @@ public class Scp173AI : ModEnemyAI
     }
     private PlayerControllerB? CheckIfAPlayerHasLineOfSight(Vector3 position)
     {
-        foreach (var player in RoundManager.Instance.playersManager.allPlayerScripts.Where(p => p.isPlayerControlled))
+        foreach (var player in RoundManager.Instance.playersManager.allPlayerScripts.Where(p => p.isPlayerControlled&& !p.isPlayerDead))
         {
             if (player.HasLineOfSightToPosition(position))
             {
@@ -339,7 +339,7 @@ public class Scp173AI : ModEnemyAI
     }
     private bool AnyPlayerHasLineOfSightToPosition(Vector3 position)
     {
-        foreach (var player in RoundManager.Instance.playersManager.allPlayerScripts.Where(p =>p.isPlayerControlled))
+        foreach (var player in RoundManager.Instance.playersManager.allPlayerScripts.Where(p =>p.isPlayerControlled&& !p.isPlayerDead))
         {
             if (player.HasLineOfSightToPosition(position))
             {
