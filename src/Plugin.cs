@@ -1,14 +1,14 @@
 ﻿using System.Reflection;
 using UnityEngine;
 using BepInEx;
-using LethalLib.Modules;
+using LethalBestiary.Modules;
 using BepInEx.Logging;
 using System.IO;
 using SCP173.Configuration;
 
 namespace SCP173 {
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
-    [BepInDependency(LethalLib.Plugin.ModGUID)] 
+    [BepInDependency(LethalBestiary.Plugin.ModGUID)] 
     public class Plugin : BaseUnityPlugin {
         internal static new ManualLogSource Logger = null!;
         internal static PluginConfig BoundConfig { get; private set; } = null!;
@@ -27,7 +27,7 @@ namespace SCP173 {
             // You may want to rename your asset bundle from the AssetBundle Browser in order to avoid an issue with
             // asset bundle identifiers being the same between multiple bundles, allowing the loading of only one bundle from one mod.
             // In that case also remember to change the asset bundle copying code in the csproj.user file.
-            var bundleName = "modassets";
+            var bundleName = "scp173modassets";
             ModAssets = AssetBundle.LoadFromFile(Path.Combine(Path.GetDirectoryName(Info.Location), bundleName));
             if (ModAssets == null) {
                 Logger.LogError($"Failed to load custom assets.");

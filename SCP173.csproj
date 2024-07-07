@@ -3,9 +3,9 @@
   <!-- BepInEx Properties -->
   <PropertyGroup>
 		<!-- This is the GUID of your mod. -->
-    <AssemblyName>Hamunii.ExampleEnemy</AssemblyName>
+    <AssemblyName>ProjectSCP.SCP173</AssemblyName>
 		<!-- This is the name of your mod. This will be used by tcli when building our Thunderstore package. -->
-    <Product>ExampleEnemy</Product>
+    <Product>SCP173</Product>
     <!-- Change to whatever version you're currently on. This will be used by tcli when building our Thunderstore package. -->
     <Version>1.0.0</Version>
   </PropertyGroup>
@@ -13,7 +13,7 @@
   <!-- Thunderstore CLI stuff -->
   <PropertyGroup>
     <!-- Your Thunderstore Team name. This will be used by tcli when building our Thunderstore package. -->
-    <ThunderstoreTeam>Hamunii</ThunderstoreTeam>
+    <ThunderstoreTeam>ProjectSCP</ThunderstoreTeam>
     <!-- Configure description for Thunderstore at ./Thunderstore/thunderstore.toml -->
   </PropertyGroup>
 
@@ -75,6 +75,14 @@
   <ItemGroup Condition="$(CI) == 'true'">
     <PackageReference Include="LethalCompany.GameLibs.Steam" Version="*-*" Publicize="true" PrivateAssets="all"/>
   </ItemGroup>
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Lethal Company\Lethal Company_Data\Managed\Assembly-CSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="LethalBestiary">
+      <HintPath>..\..\..\FNAF\Foxy\LC-ExampleEnemy-main\Plugin\dlls\LethalBestiary.dll</HintPath>
+    </Reference>
+  </ItemGroup>
 
   <!-- Allows us to use Rpc methods. See https://github.com/EvaisaDev/UnityNetcodePatcher -->
   <!-- This MSBuild option does not work in Visual Studio, using cli option for now
@@ -93,5 +101,6 @@
   <!-- For more information about tcli, see https://github.com/thunderstore-io/thunderstore-cli/wiki -->
   <Target Name="PackThunderstore" DependsOnTargets="NetcodePatch" AfterTargets="PostBuildEvent" Condition="$(Configuration) == 'Release'">
     <Exec Command="dotnet tcli build --config-path &quot;$(ProjectDir)Thunderstore/thunderstore.toml&quot; --package-version $(Version) --package-name $(Product) --package-namespace $(ThunderstoreTeam)"  />
+    
   </Target>
 </Project>
