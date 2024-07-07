@@ -59,6 +59,7 @@ public class Scp173AI : ModEnemyAI
             else
             {
                 agent.Warp(possibleTp);
+                self.SyncPositionToClients();
             }
             
         }
