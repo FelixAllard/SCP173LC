@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Security.Cryptography;
 using GameNetcodeStuff;
@@ -150,16 +151,12 @@ public class Scp173AI : ModEnemyAI
 
         public override void OnStateExit(Animator creatureAnimator)
         {
-            self.creatureSFX.PlayOneShot(self.snapNeck[UnityEngine.Random.Range(0, self.snapNeck.Length)]);
-                
-            self.targetPlayer.DamagePlayerServerRpc(100,0);
-            //self.targetPlayer.KillPlayer(new Vector3(),true, CauseOfDeath.Strangulation, 1);
-            self.targetPlayer = null;
+            
         }
         internal class SnappingNeck : AIStateTransition
         {
-            
             private bool shouldSync = true;
+            public float interval = 0.5f;
             public override bool CanTransitionBeTaken()
             {
                 if (!self.IsHost)
@@ -171,66 +168,63 @@ public class Scp173AI : ModEnemyAI
                     return false;
                 }
 
-                NavMeshPath path = new NavMeshPath();
-                self.agent.CalculatePath(self.targetPlayer.transform.position, path);
+                int iterationNumber = 0;
+                Vector3 startPosition = self.agent.transform.position;
+                Vector3 lastUnseenPosition = startPosition;
+                float remainingDistance = self.agent.remainingDistance;
 
-                if (path.corners.Length < 2)
+                while (remainingDistance > 0)
                 {
-                    return false; // No valid path
-                }
+                    iterationNumber += 1;
 
-                Vector3 lastUnseenPosition = self.agent.transform.position;
-
-                for (int i = 0; i < path.corners.Length - 1; i++)
-                {
-                    Vector3 start = path.corners[i];
-                    Vector3 end = path.corners[i + 1];
-                    Vector3 direction = (end - start).normalized;
-                    float segmentDistance = Vector3.Distance(start, end);
-                    float remainingDistance = segmentDistance;
-
-                    while (remainingDistance > 0)
-                    {
-                        float moveDistance = Mathf.Min(0.5f, remainingDistance);
-                        Vector3 newPosition = start + direction * (segmentDistance - remainingDistance + moveDistance);
-                        remainingDistance -= moveDistance;
-
-                        if (NavMesh.SamplePosition(newPosition, out NavMeshHit hit, 0.5f, NavMesh.AllAreas))
-                        {
-                            newPosition = hit.position;
-                        }
-                        else
-                        {
-                            Plugin.Logger.LogError("New position is not on the NavMesh.");
-                            break;
-                        }
-
-                        if (!self.AnyPlayerHasLineOfSightToPosition(newPosition))
-                        {
-                            lastUnseenPosition = newPosition;
-                        }
-                        else
-                        {
-                            break;
-                        }
-                    }
-
-                    if (self.AnyPlayerHasLineOfSightToPosition(lastUnseenPosition))
+                    if (iterationNumber > 100)
                     {
                         break;
                     }
+                    float moveDistance = Mathf.Min(interval, remainingDistance);
+                    Vector3 newPosition = Vector3.MoveTowards(startPosition, self.agent.destination, moveDistance);
+                    remainingDistance -= moveDistance;
+
+                    if (NavMesh.SamplePosition(newPosition, out NavMeshHit hit, interval, NavMesh.AllAreas))
+                    {
+                        newPosition = hit.position;
+                    }
+                    else
+                    {
+                        Plugin.Logger.LogError("New position is not on the NavMesh.");
+                        break;
+                    }
+
+                    if (!self.AnyPlayerHasLineOfSightToPosition(newPosition))
+                    {
+                        lastUnseenPosition = newPosition;
+                    }
+                    else
+                    {
+                        break;
+                    }
+
+                    if (Vector3.Distance(newPosition, self.targetPlayer.transform.position) < 1)
+                    {
+                        return true;
+                    }
+
+                    startPosition = newPosition;
+                    shouldSync = true;
                 }
 
-                if (lastUnseenPosition != self.agent.transform.position)
+                if (shouldSync)
                 {
-                    shouldSync = true;
+                    shouldSync = false;
                     self.agent.Warp(lastUnseenPosition);
-                    RotateAgentTowardsTarget(self.targetPlayer.transform.position);
-                    return true;
+                    RotateAgentTowardsTarget(self.agent.destination);
+                    // Ensure position is synced immediately after warping
+                    self.SyncPositionToClients();
                 }
 
                 return false;
             }
+
             void RotateAgentTowardsTarget(Vector3 targetPosition)
             {
                 Vector3 direction = targetPosition - self.agent.transform.position;
@@ -241,7 +235,8 @@ public class Scp173AI : ModEnemyAI
 
             public override AIBehaviorState NextState()
             {
-                
+                self.creatureSFX.PlayOneShot(self.horror[UnityEngine.Random.Range(0, self.horror.Length)]);
+                self.targetPlayer.DamagePlayer(100, false, true, CauseOfDeath.Strangulation, 1);
                 return new JustKilledSomeone();
             }
         }
