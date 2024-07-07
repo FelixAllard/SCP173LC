@@ -35,9 +35,9 @@ namespace SCP173 {
             }
 
             // We load our assets from our asset bundle. Remember to rename them both here and in our Unity project.
-            var ExampleEnemy = ModAssets.LoadAsset<EnemyType>("SCP173");
-            var ExampleEnemyTN = ModAssets.LoadAsset<TerminalNode>("ExampleEnemyTN");
-            var ExampleEnemyTK = ModAssets.LoadAsset<TerminalKeyword>("ExampleEnemyTK");
+            var Scp173 = ModAssets.LoadAsset<EnemyType>("SCP173");
+            var Scp173TN = ModAssets.LoadAsset<TerminalNode>("Scp173TN");
+            var Scp173TK = ModAssets.LoadAsset<TerminalKeyword>("Scp173TK");
 
             // Optionally, we can list which levels we want to add our enemy to, while also specifying the spawn weight for each.
             /*
@@ -62,10 +62,10 @@ namespace SCP173 {
 
             // Network Prefabs need to be registered. See https://docs-multiplayer.unity3d.com/netcode/current/basics/object-spawning/
             // LethalLib registers prefabs on GameNetworkManager.Start.
-            NetworkPrefabs.RegisterNetworkPrefab(ExampleEnemy.enemyPrefab);
+            NetworkPrefabs.RegisterNetworkPrefab(Scp173.enemyPrefab);
 
             // For different ways of registering your enemy, see https://github.com/EvaisaDev/LethalLib/blob/main/LethalLib/Modules/Enemies.cs
-            Enemies.RegisterEnemy(ExampleEnemy, BoundConfig.SpawnWeight.Value, Levels.LevelTypes.All, ExampleEnemyTN, ExampleEnemyTK);
+            Enemies.RegisterEnemy(Scp173, BoundConfig.SpawnWeight.Value, Levels.LevelTypes.All, Scp173TN, Scp173TK);
             // For using our rarity tables, we can use the following:
             // Enemies.RegisterEnemy(SCP173, ExampleEnemyLevelRarities, ExampleEnemyCustomLevelRarities, ExampleEnemyTN, ExampleEnemyTK);
             
