@@ -147,43 +147,57 @@ public class Scp173AI : ModEnemyAI
             private bool shouldSync = true;
             public override bool CanTransitionBeTaken()
             {
-                //TODO Needs to run faster! WAY faster!
-                var transform1 = self.agent.transform;
-                var position = transform1.position;
-                var destination1 = self.agent.destination;
-                Vector3 direction = (destination1 - position).normalized;
-                float remainingDistance = Vector3.Distance(position, destination1);
-                float moveDistance = UnityEngine.Mathf.Min(0.3f, remainingDistance); // Ensure we don't move past the destination
-                Vector3 newPosition = position + direction * moveDistance;
-
-                if (NavMesh.SamplePosition(newPosition, out NavMeshHit hit, 0.3f, NavMesh.AllAreas))
+                if (self.CheckIfAPlayerHasLineOfSight())
                 {
-                    newPosition = hit.position;
-                }
-                else
-                {
-                    Plugin.Logger.LogError("New position is not on the NavMesh.");
                     return false;
                 }
 
-                if (self.CheckIfAPlayerHasLineOfSight() == null && !self.AnyPlayerHasLineOfSightToPosition(newPosition))
+                var transform1 = self.agent.transform;
+                var position = transform1.position;
+                var destination1 = self.targetPlayer.transform.position;
+                Vector3 direction = (destination1 - position).normalized;
+                float remainingDistance = Vector3.Distance(position, destination1);
+                float increment = 0.5f;
+                Vector3 lastUnseenPosition = position;
+
+                while (remainingDistance > 0)
+                {
+                    float moveDistance = Mathf.Min(increment, remainingDistance);
+                    Vector3 newPosition = position + direction * moveDistance;
+                    remainingDistance -= moveDistance;
+
+                    if (NavMesh.SamplePosition(newPosition, out NavMeshHit hit, increment, NavMesh.AllAreas))
+                    {
+                        newPosition = hit.position;
+                    }
+                    else
+                    {
+                        Plugin.Logger.LogError("New position is not on the NavMesh.");
+                        break;
+                    }
+
+                    if (self.CheckIfAPlayerHasLineOfSight() == null && !self.AnyPlayerHasLineOfSightToPosition(newPosition))
+                    {
+                        lastUnseenPosition = newPosition;
+                    }
+                    else
+                    {
+                        break;
+                    }
+
+                    position = newPosition;
+                    direction = (destination1 - position).normalized; // Update direction
+                }
+                if (lastUnseenPosition != transform1.position)
                 {
                     shouldSync = true;
-                    self.agent.Warp(newPosition);
-                    self.agent.transform.rotation = Quaternion.LookRotation(direction);
-                    if (self.agent.remainingDistance<=0.3f)
+                    self.agent.Warp(lastUnseenPosition);
+                    self.agent.transform.rotation = Quaternion.LookRotation(destination1 - lastUnseenPosition);
+                    self.SyncPositionToClients();
+                    if (Vector3.Distance(self.targetPlayer.transform.position, self.transform.position) <= 0.2)
                     {
                         return true;
                     }
-                }
-                else
-                {
-                    if (shouldSync == true)
-                    {
-                        self.SyncPositionToClients();
-                    }
-                    shouldSync = false;
-                    
                 }
                 return false;
             }
@@ -191,6 +205,7 @@ public class Scp173AI : ModEnemyAI
             public override AIBehaviorState NextState()
             {
                 self.creatureSFX.PlayOneShot(self.snapNeck[UnityEngine.Random.Range(0, self.snapNeck.Length)]);
+                self.targetPlayer.KillPlayer(new Vector3(),true, CauseOfDeath.Strangulation, 1);
                 self.targetPlayer = null;
                 return new JustKilledSomeone();
             }
@@ -266,7 +281,7 @@ public class Scp173AI : ModEnemyAI
         {
             if (player.HasLineOfSightToPosition(transform.position))
             {
-                Plugin.Logger.LogInfo(" I am seen");
+                //Plugin.Logger.LogInfo(" I am seen");
                 return player;
             }
         }
@@ -278,7 +293,7 @@ public class Scp173AI : ModEnemyAI
         {
             if (player.HasLineOfSightToPosition(position))
             {
-                Plugin.Logger.LogInfo(" I am seen");
+                //Plugin.Logger.LogInfo(" I am seen");
                 return player;
             }
         }
@@ -290,7 +305,7 @@ public class Scp173AI : ModEnemyAI
         {
             if (player.HasLineOfSightToPosition(position))
             {
-                Plugin.Logger.LogInfo(" I am seen");
+                //Plugin.Logger.LogInfo(" I am seen");
                 return true;
             }
         }
