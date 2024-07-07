@@ -92,15 +92,15 @@ public class Scp173AI : ModEnemyAI
         }
         internal class NoOnelooked : AIStateTransition
         {
-            private int tickWaiting = 500;
-            private int time = 500;
+            private int _tickWaiting = 500;
+            private int _time = 500;
             public override bool CanTransitionBeTaken()
             {
-                if (time <= 0)
+                if (_time <= 0)
                 {
                     return true;
                 }
-                time -= 1;
+                _time -= 1;
                 return false;
             }
             public override AIBehaviorState NextState()
@@ -138,8 +138,6 @@ public class Scp173AI : ModEnemyAI
 
         public override void OnStateExit(Animator creatureAnimator)
         {
-            agent.ResetPath();
-            self.targetPlayer = null;
             
         }
         internal class SnappingNeck : AIStateTransition
@@ -192,7 +190,17 @@ public class Scp173AI : ModEnemyAI
                 {
                     shouldSync = true;
                     self.agent.Warp(lastUnseenPosition);
-                    self.agent.transform.rotation = Quaternion.LookRotation(destination1 - lastUnseenPosition);
+                    // Calculate the direction to the destination
+                    Vector3 direction2 = destination1 - lastUnseenPosition;
+
+                    // Zero out the Y component to only consider horizontal direction
+                    direction2.y = 0;
+
+                    // Create the rotation based on the horizontal direction
+                    Quaternion targetRotation = Quaternion.LookRotation(direction2);
+
+                    // Apply the rotation to the agent, maintaining its current vertical rotation
+                    self.agent.transform.rotation = Quaternion.Euler(0, targetRotation.eulerAngles.y, 0);
                     self.SyncPositionToClients();
                     if (Vector3.Distance(self.targetPlayer.transform.position, self.transform.position) <= 0.2)
                     {
@@ -201,11 +209,19 @@ public class Scp173AI : ModEnemyAI
                 }
                 return false;
             }
+            void RotateAgentTowardsTarget(Vector3 targetPosition)
+            {
+                Vector3 direction = targetPosition - self.agent.transform.position;
+                direction.y = 0; // Ignore vertical component
+                Quaternion targetRotation = Quaternion.LookRotation(direction);
+                self.agent.transform.rotation = Quaternion.Euler(0, targetRotation.eulerAngles.y, 0);
+            }
 
             public override AIBehaviorState NextState()
             {
                 self.creatureSFX.PlayOneShot(self.snapNeck[UnityEngine.Random.Range(0, self.snapNeck.Length)]);
-                self.targetPlayer.KillPlayer(new Vector3(),true, CauseOfDeath.Strangulation, 1);
+                self.targetPlayer.DamagePlayerServerRpc(100,0);
+                //self.targetPlayer.KillPlayer(new Vector3(),true, CauseOfDeath.Strangulation, 1);
                 self.targetPlayer = null;
                 return new JustKilledSomeone();
             }
@@ -214,6 +230,10 @@ public class Scp173AI : ModEnemyAI
         {
             public override bool CanTransitionBeTaken()
             {
+                if (self.targetPlayer == null)
+                {
+                    return true;
+                }
                 PlayerControllerB? targetPlayer = self.targetPlayer;
                 if (!targetPlayer.isPlayerControlled || targetPlayer.isPlayerDead || !targetPlayer.isInsideFactory)
                 {
