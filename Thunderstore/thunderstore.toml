@@ -5,7 +5,7 @@ schemaVersion = "0.0.1"
 repository = "https://thunderstore.io"
 
 [package]
-description = "Example Enemy for Lethal Company."
+description = "[BETA] SCP-173 has breached containment"
 websiteUrl = "https://github.com/Hamunii/LC-ExampleEnemy"
 containsNsfwContent = false
 [package.dependencies]

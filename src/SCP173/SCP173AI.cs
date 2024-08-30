@@ -220,7 +220,7 @@ public class Scp173AI : ModEnemyAI
                 {
                     shouldSync = false;
                     self.agent.Warp(lastUnseenPosition);
-                    RotateAgentTowardsTarget(self.agent.destination);
+                    RotateAgentTowardsTarget(self.targetPlayer.transform.position);
                     // Ensure position is synced immediately after warping
                     self.SyncPositionToClients();
                 }
@@ -264,12 +264,10 @@ public class Scp173AI : ModEnemyAI
                         self.targetPlayer = targetPlayer;
                         return false;
                     }
-
                     return true;
                 }
                 return false;
             }
-
             public override AIBehaviorState NextState()
             {
                 self.targetPlayer = null;
@@ -297,7 +295,6 @@ public class Scp173AI : ModEnemyAI
         {
 
         }
-        
         internal class Waiting : AIStateTransition
         {
             int timeRemaining = 1000;
@@ -315,7 +312,6 @@ public class Scp173AI : ModEnemyAI
             }
         }
     }
-
     private PlayerControllerB? CheckIfAPlayerHasLineOfSight()
     {
         foreach (var player in RoundManager.Instance.playersManager.allPlayerScripts.Where(p =>p.isPlayerControlled && !p.isPlayerDead))
@@ -352,7 +348,6 @@ public class Scp173AI : ModEnemyAI
         }
         return false;
     }
-
     [ClientRpc]
     private void SetTargetClientRpc(ulong clientId)
     {
