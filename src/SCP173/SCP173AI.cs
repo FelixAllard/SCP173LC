@@ -53,7 +53,7 @@ public class Scp173AI : ModEnemyAI
             {
                 return;
             }
-            self.targetPlayer = null;
+            self.ResetTargetPlayerClientRpc();
             agent.ResetPath();
             Vector3 possibleTp =  RoundManager.Instance.insideAINodes
                 [UnityEngine.Random.Range(0, RoundManager.Instance.insideAINodes.Length)].transform.position;
@@ -88,8 +88,11 @@ public class Scp173AI : ModEnemyAI
                     return false;
                 }
                 self.targetPlayer = self.CheckIfAPlayerHasLineOfSight();
-                if(self.targetPlayer!=null)
+                if (self.targetPlayer != null)
+                {
+                    self.SetTargetClientRpc(self.targetPlayer.playerClientId);
                     return true;
+                }
                 return false;
             }
 
@@ -101,8 +104,8 @@ public class Scp173AI : ModEnemyAI
         }
         internal class NoOnelooked : AIStateTransition
         {
-            private int _tickWaiting = 500;
-            private int _time = 500;
+            private int _tickWaiting = 1500;
+            private int _time = 1500;
             public override bool CanTransitionBeTaken()
             {
                 if (_time <= 0)
@@ -348,5 +351,17 @@ public class Scp173AI : ModEnemyAI
             }
         }
         return false;
+    }
+
+    [ClientRpc]
+    private void SetTargetClientRpc(ulong clientId)
+    {
+        targetPlayer =
+            RoundManager.Instance.playersManager.allPlayerScripts.FirstOrDefault(p => p.isPlayerControlled && !p.isPlayerDead && p.playerClientId == clientId);
+    }
+    [ClientRpc]
+    private void ResetTargetPlayerClientRpc()
+    {
+        targetPlayer = null;
     }
 }
