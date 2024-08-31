@@ -122,115 +122,124 @@ public class Scp173AI : ModEnemyAI
             }
         }
     }
-    private class ChasePhase : AIBehaviorState
-    {
-        public override List<AIStateTransition> Transitions { get; set; } =
-            [
-                new SnappingNeck(),
-                new LostTarget()
-            ];
-
-        public override void OnStateEntered(Animator creatureAnimator)
+        private class ChasePhase : AIBehaviorState
         {
-            self.creatureSFX.PlayOneShot(self.horror[UnityEngine.Random.Range(0, self.horror.Length)]);
-        }
+            public override List<AIStateTransition> Transitions { get; set; } =
+                [
+                    new SnappingNeck(),
+                    new LostTarget()
+                ];
 
-        public override void AIInterval(Animator creatureAnimator)
-        {
-            if (!self.IsHost)
+            public override void OnStateEntered(Animator creatureAnimator)
             {
-                return;
+                self.creatureSFX.PlayOneShot(self.horror[UnityEngine.Random.Range(0, self.horror.Length)]);
             }
-            if (!self.targetPlayer.HasLineOfSightToPosition(self.transform.position))
-            {
-                PlayerControllerB? playerWhoSaw = self.CheckIfAPlayerHasLineOfSight();
-                if (playerWhoSaw != null) 
-                {
-                    self.targetPlayer = playerWhoSaw;
-                }
-            }
-            self.SetDestinationToPosition(self.targetPlayer.transform.position);
-        }
 
-        public override void OnStateExit(Animator creatureAnimator)
-        {
-            
-        }
-        internal class SnappingNeck : AIStateTransition
-        {
-            private bool shouldSync = true;
-            public float interval = 0.5f;
-            public override bool CanTransitionBeTaken()
+            public override void AIInterval(Animator creatureAnimator)
             {
                 if (!self.IsHost)
                 {
-                    return false;
+                    return;
                 }
-                if (self.CheckIfAPlayerHasLineOfSight())
+                if (!self.targetPlayer.HasLineOfSightToPosition(self.transform.position))
                 {
-                    return false;
+                    PlayerControllerB? playerWhoSaw = self.CheckIfAPlayerHasLineOfSight();
+                    if (playerWhoSaw != null) 
+                    {
+                        self.targetPlayer = playerWhoSaw;
+                    }
                 }
+                self.SetDestinationToPosition(self.targetPlayer.transform.position);
+            }
 
-                int iterationNumber = 0;
-                Vector3 startPosition = self.agent.transform.position;
-                Vector3 lastUnseenPosition = startPosition;
-                float remainingDistance = self.agent.remainingDistance;
-
-                while (remainingDistance > 0)
+            public override void OnStateExit(Animator creatureAnimator)
+            {
+                
+            } 
+        
+            internal class SnappingNeck : AIStateTransition 
+            {
+                private bool shouldSync = true; 
+                public float interval = 1f;
+            
+                 public override bool CanTransitionBeTaken()
                 {
-                    iterationNumber += 1;
-
-                    if (iterationNumber > 100)
+                    if (!self.IsHost || self.CheckIfAPlayerHasLineOfSight())
                     {
-                        break;
-                    }
-                    float moveDistance = Mathf.Min(interval, remainingDistance);
-                    Vector3 newPosition = Vector3.MoveTowards(startPosition, self.agent.destination, moveDistance);
-                    remainingDistance -= moveDistance;
-
-                    if (NavMesh.SamplePosition(newPosition, out NavMeshHit hit, interval, NavMesh.AllAreas))
-                    {
-                        newPosition = hit.position;
-                    }
-                    else
-                    {
-                        Plugin.Logger.LogError("New position is not on the NavMesh.");
-                        break;
+                        return false;
                     }
 
-                    if (!self.AnyPlayerHasLineOfSightToPosition(newPosition))
+                    Vector3 startPosition = self.agent.transform.position;
+                    Vector3 lastUnseenPosition = startPosition;
+                    float remainingDistance = self.agent.remainingDistance;
+
+                    while (remainingDistance > 0)
                     {
-                        lastUnseenPosition = newPosition;
-                    }
-                    else
-                    {
-                        break;
+                        float moveDistance = Mathf.Min(interval, remainingDistance);
+                        Vector3 nextPosition = Vector3.MoveTowards(startPosition, self.agent.destination, moveDistance);
+                        remainingDistance -= moveDistance;
+
+                        if (NavMesh.SamplePosition(nextPosition, out NavMeshHit hit, interval, NavMesh.AllAreas))
+                        {
+                            nextPosition = hit.position;
+                        }
+                        else
+                        {
+                            Plugin.Logger.LogError("Next position is not on the NavMesh.");
+                            break;
+                        }
+
+                        // Check if the AI has a line of sight from this new position
+                        if (!self.AnyPlayerHasLineOfSightToPosition(nextPosition))
+                        {
+                            lastUnseenPosition = nextPosition;
+                            shouldSync = true;
+                        }
+                        else
+                        {
+                            // If the AI is in line of sight, stop moving and sync position
+                            if (shouldSync)
+                            {
+                                self.agent.Warp(lastUnseenPosition);
+                                RotateAgentTowardsTarget(self.targetPlayer.transform.position);
+                                self.SyncPositionToClients();
+                                shouldSync = false;
+                            }
+                            return false; // Stop the chase but don't transition to kill
+                        }
+
+                        if (Vector3.Distance(nextPosition, self.targetPlayer.transform.position) < 0.3f)
+                        {
+                            // Sync before returning true to indicate stopping the chase
+                            if (shouldSync)
+                            {
+                                self.agent.Warp(lastUnseenPosition);
+                                RotateAgentTowardsTarget(self.targetPlayer.transform.position);
+                                self.SyncPositionToClients();
+                                shouldSync = false;
+                            }
+                            return true;
+                        }
+
+                        startPosition = nextPosition;
                     }
 
-                    if (Vector3.Distance(newPosition, self.targetPlayer.transform.position) < 1)
+                    // Sync if movement stopped naturally (e.g., reached the destination)
+                    if (remainingDistance <= 0 && shouldSync)
                     {
+                        self.agent.Warp(lastUnseenPosition);
+                        RotateAgentTowardsTarget(self.targetPlayer.transform.position);
+                        self.SyncPositionToClients();
+                        shouldSync = false;
                         return true;
                     }
 
-                    startPosition = newPosition;
-                    shouldSync = true;
+                    return false;
                 }
 
-                if (shouldSync)
-                {
-                    shouldSync = false;
-                    self.agent.Warp(lastUnseenPosition);
-                    RotateAgentTowardsTarget(self.targetPlayer.transform.position);
-                    // Ensure position is synced immediately after warping
-                    self.SyncPositionToClients();
-                }
-
-                return false;
-            }
-
-            void RotateAgentTowardsTarget(Vector3 targetPosition)
+            private void RotateAgentTowardsTarget(Vector3 targetPosition)
             {
-                Vector3 direction = targetPosition - self.agent.transform.position;
+                Vector3 direction = (targetPosition - self.agent.transform.position).normalized;
                 direction.y = 0; // Ignore vertical component
                 Quaternion targetRotation = Quaternion.LookRotation(direction);
                 self.agent.transform.rotation = Quaternion.Euler(0, targetRotation.eulerAngles.y, 0);
@@ -238,11 +247,19 @@ public class Scp173AI : ModEnemyAI
 
             public override AIBehaviorState NextState()
             {
-                self.creatureSFX.PlayOneShot(self.horror[UnityEngine.Random.Range(0, self.horror.Length)]);
-                self.targetPlayer.DamagePlayer(100, false, true, CauseOfDeath.Strangulation, 1);
-                return new JustKilledSomeone();
+                // Introduce a short delay or condition before transitioning to the kill state
+                if (Vector3.Distance(self.agent.transform.position, self.targetPlayer.transform.position) < 0.3f && !self.targetPlayer.HasLineOfSightToPosition(self.agent.transform.position))
+                {
+                    self.creatureSFX.PlayOneShot(self.horror[UnityEngine.Random.Range(0, self.horror.Length)]);
+                    self.targetPlayer.DamagePlayer(100, false, true, CauseOfDeath.Strangulation, 1);
+                    return new JustKilledSomeone();
+                }
+
+                // Return to idle or another appropriate state if the kill condition isn't met
+                return new JustKilledSomeone(); 
             }
         }
+
         internal class LostTarget : AIStateTransition
         {
             public override bool CanTransitionBeTaken()
