@@ -9,19 +9,21 @@ Description: Moved to Site-19 1993. Origin is as of yet unknown. It is construct
 ---
 ## In game Description
 ```
-Spawn location: Outside
+Spawn location: Inside
 Health: Invincible
 damage 100
 Movement speed : To fast
 Door opening speed : 0.1 sec
 ```
-### WARNING : This item in in beta test mod, join ProjectSCP to help us in any problem or bugs found.
+### WARNING : This item in beta test mod, join ProjectSCP to help us in any problem or bugs found.
 ### WARNING : THIS IS A VERY STRONG MONSTER
+### THIS IS NOT A COIL HEAD RESKIN
+### Imperium warning : when spawning, there can be a problem for clients. The host will not experience anything out of usual tho
 
 ---
 ## Phases
 
-**Roaming Phase** : teleports randomly around facility
+**Roaming Phase** : teleports randomly around facility. Upon being seen, will enter chase phase. You can hear a heartbeat when he is near so you know to try and not look at him
 
 **Chase Phase** : Will start chasing the player who see it. if the player loose line of sight, will start moving at the speed of light. Will always target the last player who saw it alone.
 

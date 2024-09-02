@@ -16,7 +16,6 @@ namespace SCP173 {
 
         private void Awake() {
             Logger = base.Logger;
-
             // If you don't want your mod to use a configuration file, you can remove this line, Configuration.cs, and other references.
             BoundConfig = new PluginConfig(base.Config);
 

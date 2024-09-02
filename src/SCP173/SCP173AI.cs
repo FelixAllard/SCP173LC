@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -16,6 +17,7 @@ public class Scp173AI : ModEnemyAI
     public AudioClip[] horror;
     [SerializeField] 
     public AudioClip[] snapNeck; 
+    public BoxCollider visionCollider;
     
     public override void Start()
     {
@@ -37,7 +39,12 @@ public class Scp173AI : ModEnemyAI
     {
         base.HitEnemy(force, playerWhoHit, playHitSFX, hitID);
     }
-    
+
+    public override void DoAIInterval()
+    {
+        base.DoAIInterval(); 
+        Plugin.Logger.LogInfo("Current behaviour : " + ActiveState.GetType().Name);
+    }
 
     private class RoamingPhase : AIBehaviorState
     {
@@ -49,15 +56,27 @@ public class Scp173AI : ModEnemyAI
 
         public override void OnStateEntered(Animator creatureAnimator)
         {
-            if (!self.IsHost)
+            if (self.NetworkManager.IsClient)
             {
                 return;
             }
             self.ResetTargetPlayerClientRpc();
             agent.ResetPath();
-            Vector3 possibleTp =  RoundManager.Instance.insideAINodes
-                [UnityEngine.Random.Range(0, RoundManager.Instance.insideAINodes.Length)].transform.position;
-            if (self.CheckIfAPlayerHasLineOfSight(possibleTp) != null)
+            GameObject[] aiNode = RoundManager.Instance.insideAINodes;
+            Vector3 possibleTp;
+            try
+            {
+                 possibleTp =  aiNode
+                    [UnityEngine.Random.Range(0, RoundManager.Instance.insideAINodes.Length)].transform.position;
+            }
+            catch (Exception e)
+            {
+                possibleTp = RoundManager.Instance.insideAINodes[0].transform.position;
+                Plugin.Logger.LogError("We had some problem finding specifics");
+                throw;
+            }
+            
+            if (self.AnyPlayerHasLineOfSightToPosition(possibleTp))
             {
                 OnStateEntered(creatureAnimator);
             }
@@ -87,9 +106,10 @@ public class Scp173AI : ModEnemyAI
                 {
                     return false;
                 }
-                self.targetPlayer = self.CheckIfAPlayerHasLineOfSight();
+                self.targetPlayer = self.CheckIfAPlayerHasLineOfSightToCollider();
                 if (self.targetPlayer != null)
                 {
+                    Plugin.Logger.LogInfo($"Player {self.targetPlayer.name} has a line of sight");
                     self.SetTargetClientRpc(self.targetPlayer.playerClientId);
                     return true;
                 }
@@ -143,10 +163,11 @@ public class Scp173AI : ModEnemyAI
                 }
                 if (!self.targetPlayer.HasLineOfSightToPosition(self.transform.position))
                 {
-                    PlayerControllerB? playerWhoSaw = self.CheckIfAPlayerHasLineOfSight();
+                    PlayerControllerB? playerWhoSaw = self.CheckIfAPlayerHasLineOfSightToCollider();
                     if (playerWhoSaw != null) 
                     {
                         self.targetPlayer = playerWhoSaw;
+                        self.SetTargetClientRpc(playerWhoSaw.playerClientId);
                     }
                 }
                 self.SetDestinationToPosition(self.targetPlayer.transform.position);
@@ -161,20 +182,22 @@ public class Scp173AI : ModEnemyAI
             {
                 private bool shouldSync = true; 
                 public float interval = 1f;
+                public int maxIteration = 100;
             
                  public override bool CanTransitionBeTaken()
                 {
-                    if (!self.IsHost || self.CheckIfAPlayerHasLineOfSight())
+                    if (!self.IsHost || self.AnyPlayerHasLineOfSightToCollider())
                     {
                         return false;
                     }
-
+                    int currentIteration = 0;
                     Vector3 startPosition = self.agent.transform.position;
                     Vector3 lastUnseenPosition = startPosition;
-                    float remainingDistance = self.agent.remainingDistance;
+                    float remainingDistance = Vector3.Distance(self.transform.position, self.agent.destination);
 
-                    while (remainingDistance > 0)
+                    while (remainingDistance > 0 || currentIteration < maxIteration )
                     {
+                        currentIteration++;
                         float moveDistance = Mathf.Min(interval, remainingDistance);
                         Vector3 nextPosition = Vector3.MoveTowards(startPosition, self.agent.destination, moveDistance);
                         remainingDistance -= moveDistance;
@@ -208,7 +231,7 @@ public class Scp173AI : ModEnemyAI
                             return false; // Stop the chase but don't transition to kill
                         }
 
-                        if (Vector3.Distance(nextPosition, self.targetPlayer.transform.position) < 0.3f)
+                        if (Vector3.Distance(nextPosition, self.targetPlayer.transform.position) < 0.3f && !self.AnyPlayerHasLineOfSightToCollider())
                         {
                             // Sync before returning true to indicate stopping the chase
                             if (shouldSync)
@@ -218,21 +241,23 @@ public class Scp173AI : ModEnemyAI
                                 self.SyncPositionToClients();
                                 shouldSync = false;
                             }
+                            Plugin.Logger.LogInfo("Went to second phase through First condition");
                             return true;
                         }
 
                         startPosition = nextPosition;
                     }
-
-                    // Sync if movement stopped naturally (e.g., reached the destination)
+                    //I DOn't believe we need this!
+                    /*// Sync if movement stopped naturally (e.g., reached the destination)
                     if (remainingDistance <= 0 && shouldSync)
                     {
+                        Plugin.Logger.LogInfo("Went to second phase through second condition");
                         self.agent.Warp(lastUnseenPosition);
                         RotateAgentTowardsTarget(self.targetPlayer.transform.position);
                         self.SyncPositionToClients();
                         shouldSync = false;
                         return true;
-                    }
+                    }*/
 
                     return false;
                 }
@@ -248,15 +273,14 @@ public class Scp173AI : ModEnemyAI
             public override AIBehaviorState NextState()
             {
                 // Introduce a short delay or condition before transitioning to the kill state
-                if (Vector3.Distance(self.agent.transform.position, self.targetPlayer.transform.position) < 0.3f && !self.targetPlayer.HasLineOfSightToPosition(self.agent.transform.position))
+                //if (Vector3.Distance(self.agent.transform.position, self.targetPlayer.transform.position) < 0.3f && !self.AnyPlayerHasLineOfSightToCollider())
                 {
+                    Plugin.Logger.LogInfo("We somehow triggered!");
                     self.creatureSFX.PlayOneShot(self.horror[UnityEngine.Random.Range(0, self.horror.Length)]);
                     self.targetPlayer.DamagePlayer(100, false, true, CauseOfDeath.Strangulation, 1);
                     return new JustKilledSomeone();
                 }
-
                 // Return to idle or another appropriate state if the kill condition isn't met
-                return new JustKilledSomeone(); 
             }
         }
 
@@ -273,9 +297,9 @@ public class Scp173AI : ModEnemyAI
                     return true;
                 }
                 PlayerControllerB? targetPlayer = self.targetPlayer;
-                if (!targetPlayer.isPlayerControlled || targetPlayer.isPlayerDead || !targetPlayer.isInsideFactory)
+                if (!targetPlayer.isPlayerControlled ||  !targetPlayer.isInsideFactory)// Removed : targetPlayer.isPlayerDead ||
                 {
-                    targetPlayer = self.CheckIfAPlayerHasLineOfSight();
+                    targetPlayer = self.CheckIfAPlayerHasLineOfSightToCollider();
                     if (targetPlayer != null)
                     {
                         self.targetPlayer = targetPlayer;
@@ -287,7 +311,7 @@ public class Scp173AI : ModEnemyAI
             }
             public override AIBehaviorState NextState()
             {
-                self.targetPlayer = null;
+                self.ResetTargetPlayerClientRpc();
                 return new RoamingPhase();
             }
         }
@@ -301,7 +325,7 @@ public class Scp173AI : ModEnemyAI
 
         public override void OnStateEntered(Animator creatureAnimator)
         {
-            self.agent.ResetPath();
+            //self.agent.ResetPath();
         }
 
         public override void AIInterval(Animator creatureAnimator)
@@ -329,42 +353,71 @@ public class Scp173AI : ModEnemyAI
             }
         }
     }
-    private PlayerControllerB? CheckIfAPlayerHasLineOfSight()
+    private PlayerControllerB? CheckIfAPlayerHasLineOfSightToCollider()
     {
-        foreach (var player in RoundManager.Instance.playersManager.allPlayerScripts.Where(p =>p.isPlayerControlled && !p.isPlayerDead))
+        Bounds bounds = visionCollider.bounds;
+        Vector3[] checkPoints = GetBoundingBoxCheckPoints(bounds);
+
+        foreach (var player in RoundManager.Instance.playersManager.allPlayerScripts.Where(p => p.isPlayerControlled && !p.isPlayerDead))
         {
-            if (player.HasLineOfSightToPosition(transform.position))
+            foreach (var point in checkPoints)
             {
-                //Plugin.Logger.LogInfo(" I am seen");
-                return player;
+                if (player.HasLineOfSightToPosition(point))
+                {
+                    return player;
+                }
             }
         }
         return null;
     }
-    private PlayerControllerB? CheckIfAPlayerHasLineOfSight(Vector3 position)
+
+    private bool AnyPlayerHasLineOfSightToCollider()
     {
-        foreach (var player in RoundManager.Instance.playersManager.allPlayerScripts.Where(p => p.isPlayerControlled&& !p.isPlayerDead))
+        Bounds bounds = visionCollider.bounds;
+        Vector3[] checkPoints = GetBoundingBoxCheckPoints(bounds);
+
+        foreach (var player in RoundManager.Instance.playersManager.allPlayerScripts.Where(p => p.isPlayerControlled && !p.isPlayerDead))
         {
-            if (player.HasLineOfSightToPosition(position))
+            foreach (var point in checkPoints)
             {
-                //Plugin.Logger.LogInfo(" I am seen");
-                return player;
-            }
-        }
-        return null;
-    }
-    private bool AnyPlayerHasLineOfSightToPosition(Vector3 position)
-    {
-        foreach (var player in RoundManager.Instance.playersManager.allPlayerScripts.Where(p =>p.isPlayerControlled&& !p.isPlayerDead))
-        {
-            if (player.HasLineOfSightToPosition(position))
-            {
-                //Plugin.Logger.LogInfo(" I am seen");
-                return true;
+                if (player.HasLineOfSightToPosition(point))
+                {
+                    return true;
+                }
             }
         }
         return false;
     }
+    private bool AnyPlayerHasLineOfSightToPosition(Vector3 targetPosition)
+    {
+        foreach (var player in RoundManager.Instance.playersManager.allPlayerScripts.Where(p => p.isPlayerControlled && !p.isPlayerDead))
+        {
+
+            if (player.HasLineOfSightToPosition(targetPosition))
+            {
+                return true;
+            }
+
+        }
+        return false;
+    }
+
+    private Vector3[] GetBoundingBoxCheckPoints(Bounds bounds)
+    {
+        // Define the 8 corners of the bounding box
+        return new Vector3[]
+        {
+            bounds.center, // Center of the bounds
+            bounds.min, // Bottom-left corner
+            bounds.max, // Top-right corner
+            new Vector3(bounds.min.x, bounds.min.y, bounds.max.z), // Bottom-left front
+            new Vector3(bounds.min.x, bounds.max.y, bounds.min.z), // Top-left back
+            new Vector3(bounds.max.x, bounds.min.y, bounds.min.z), // Bottom-right back
+            new Vector3(bounds.max.x, bounds.max.y, bounds.min.z), // Top-right back
+            new Vector3(bounds.min.x, bounds.max.y, bounds.max.z)  // Top-left front
+        };
+    }
+
     [ClientRpc]
     private void SetTargetClientRpc(ulong clientId)
     {
