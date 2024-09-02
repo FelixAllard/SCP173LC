@@ -124,8 +124,7 @@ public class Scp173AI : ModEnemyAI
         }
         internal class NoOnelooked : AIStateTransition
         {
-            private int _tickWaiting = 1500;
-            private int _time = 1500;
+            private int _time = Plugin.BoundConfig.AmmountOfTimeWaiting.Value;
             public override bool CanTransitionBeTaken()
             {
                 if (_time <= 0)
@@ -181,8 +180,8 @@ public class Scp173AI : ModEnemyAI
             internal class SnappingNeck : AIStateTransition 
             {
                 private bool shouldSync = true; 
-                public float interval = 1f;
-                public int maxIteration = 100;
+                public float interval = Plugin.BoundConfig.LeapDistance.Value;
+                public int maxIteration = Plugin.BoundConfig.NumberOfLeapPerFrame.Value;
             
                  public override bool CanTransitionBeTaken()
                 {
@@ -276,8 +275,8 @@ public class Scp173AI : ModEnemyAI
                 //if (Vector3.Distance(self.agent.transform.position, self.targetPlayer.transform.position) < 0.3f && !self.AnyPlayerHasLineOfSightToCollider())
                 {
                     Plugin.Logger.LogInfo("We somehow triggered!");
-                    self.creatureSFX.PlayOneShot(self.horror[UnityEngine.Random.Range(0, self.horror.Length)]);
-                    self.targetPlayer.DamagePlayer(100, false, true, CauseOfDeath.Strangulation, 1);
+                    self.creatureSFX.PlayOneShot(self.snapNeck[UnityEngine.Random.Range(0, self.snapNeck.Length)]);
+                    self.targetPlayer.DamagePlayer(Plugin.BoundConfig.AmmountOfDamage.Value, false, true, CauseOfDeath.Strangulation, 1);
                     return new JustKilledSomeone();
                 }
                 // Return to idle or another appropriate state if the kill condition isn't met
@@ -338,7 +337,7 @@ public class Scp173AI : ModEnemyAI
         }
         internal class Waiting : AIStateTransition
         {
-            int timeRemaining = 1000;
+            int timeRemaining = Plugin.BoundConfig.TicksAfterKilling.Value;
             public override bool CanTransitionBeTaken()
             {
                 //IfIsClose enough to destination

@@ -10,4 +10,12 @@
 - Broke the infinite loop iteration for teleport
 - Made multiplayer more stable
 - Improved Collider check for a better experience
-  - We now have a big vision check which make sure you don't look at 173 in any way. Not just the middle of his position
+- We now have a big vision check which make sure you don't look at 173 in any way. Not just the middle of his position
+- Added The snap neck sound upon kill
+- Added more configs:
+  - SpawnWeight;
+  -  TicksAfterKilling;
+  -  AmmountOfDamage;
+  -  LeapDistance;
+  -  NumberOfLeapPerFrame;
+  -  AmmountOfTimeWaiting;
