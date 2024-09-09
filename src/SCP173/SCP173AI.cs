@@ -72,7 +72,6 @@ public class Scp173AI : ModEnemyAI
             catch (Exception e)
             {
                 possibleTp = RoundManager.Instance.insideAINodes[0].transform.position;
-                Plugin.Logger.LogError("We had some problem finding specifics");
                 throw;
             }
             
@@ -109,7 +108,6 @@ public class Scp173AI : ModEnemyAI
                 self.targetPlayer = self.CheckIfAPlayerHasLineOfSightToCollider();
                 if (self.targetPlayer != null)
                 {
-                    Plugin.Logger.LogInfo($"Player {self.targetPlayer.name} has a line of sight");
                     self.SetTargetClientRpc(self.targetPlayer.playerClientId);
                     return true;
                 }
@@ -200,6 +198,8 @@ public class Scp173AI : ModEnemyAI
                         float moveDistance = Mathf.Min(interval, remainingDistance);
                         Vector3 nextPosition = Vector3.MoveTowards(startPosition, self.agent.destination, moveDistance);
                         remainingDistance -= moveDistance;
+                        
+                        
 
                         if (NavMesh.SamplePosition(nextPosition, out NavMeshHit hit, interval, NavMesh.AllAreas))
                         {
@@ -225,6 +225,7 @@ public class Scp173AI : ModEnemyAI
                                 self.agent.Warp(lastUnseenPosition);
                                 RotateAgentTowardsTarget(self.targetPlayer.transform.position);
                                 self.SyncPositionToClients();
+                                
                                 shouldSync = false;
                             }
                             return false; // Stop the chase but don't transition to kill
@@ -240,7 +241,6 @@ public class Scp173AI : ModEnemyAI
                                 self.SyncPositionToClients();
                                 shouldSync = false;
                             }
-                            Plugin.Logger.LogInfo("Went to second phase through First condition");
                             return true;
                         }
 
@@ -274,7 +274,6 @@ public class Scp173AI : ModEnemyAI
                 // Introduce a short delay or condition before transitioning to the kill state
                 //if (Vector3.Distance(self.agent.transform.position, self.targetPlayer.transform.position) < 0.3f && !self.AnyPlayerHasLineOfSightToCollider())
                 {
-                    Plugin.Logger.LogInfo("We somehow triggered!");
                     self.creatureSFX.PlayOneShot(self.snapNeck[UnityEngine.Random.Range(0, self.snapNeck.Length)]);
                     self.targetPlayer.DamagePlayer(Plugin.BoundConfig.AmmountOfDamage.Value, false, true, CauseOfDeath.Strangulation, 1);
                     return new JustKilledSomeone();
@@ -296,7 +295,7 @@ public class Scp173AI : ModEnemyAI
                     return true;
                 }
                 PlayerControllerB? targetPlayer = self.targetPlayer;
-                if (!targetPlayer.isPlayerControlled ||  !targetPlayer.isInsideFactory)// Removed : targetPlayer.isPlayerDead ||
+                if (!targetPlayer.isPlayerControlled ||  !targetPlayer.isInsideFactory || targetPlayer.isInElevator || targetPlayer.isPlayerDead)// Removed : targetPlayer.isPlayerDead ||
                 {
                     targetPlayer = self.CheckIfAPlayerHasLineOfSightToCollider();
                     if (targetPlayer != null)
@@ -314,6 +313,33 @@ public class Scp173AI : ModEnemyAI
                 return new RoamingPhase();
             }
         }
+        /*internal class EncounteredADoor : AIStateTransition
+        {
+            public override bool CanTransitionBeTaken()
+            {
+                if (!self.IsHost)
+                {
+                    return false;
+                }
+                DoorLock[] doorsInLevel = FindObjectsOfType<DoorLock>();
+                if(doorsInLevel.FirstOrDefault(
+                       @lock => @lock.isLocked == false 
+                                && Vector3
+                                    .Distance(
+                                        @lock.transform.position, 
+                                        self.transform.position)<1f) != null)
+                {
+                    if(!self.AnyPlayerHasLineOfSightToCollider())
+                        return true;
+                }
+                return false;
+            }
+            public override AIBehaviorState NextState()
+            {
+                self.ResetTargetPlayerClientRpc();
+                return new RoamingPhase();
+            }
+        }*/
     }
     private class JustKilledSomeone : AIBehaviorState
     {

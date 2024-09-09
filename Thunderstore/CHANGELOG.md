@@ -19,3 +19,10 @@
   -  LeapDistance;
   -  NumberOfLeapPerFrame;
   -  AmmountOfTimeWaiting;
+
+## 1.0.2
+- Removed NavMesh util from DLL build
+- Modified Nav Mesh agent for it to be smaller
+- Recentered some assets such as the map dot and collision detection
+- Renamed object ID to 173 ( For lethal,doesn't affect gameplay )
+- Changed Vision Collider to cover more of the feet
