@@ -10,7 +10,7 @@ websiteUrl = "https://github.com/FelixAllard/SCP173LC"
 containsNsfwContent = false
 [package.dependencies]
 BepInEx-BepInExPack = "5.4.2100"
-TheWeavers-LethalBestiary = "1.2.1"
+Evaisa-LethalLib-1.1.1"
 
 [build]
 icon = "./icon.png"

@@ -83,11 +83,6 @@ public class ModEnemyAI : EnemyAI
         }
     }
 
-    protected override string __getTypeName()
-    {
-        return GetType().Name;
-    }
-
     public override void DoAIInterval()
     {
         base.DoAIInterval();

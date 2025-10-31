@@ -1,0 +1,12 @@
+{
+  "namespace": "ProjectSCP",
+  "name": "SCP173",
+  "description": "[BETA] SCP-173 has breached containment",
+  "version_number": "1.0.2",
+  "dependencies": [
+    "BepInEx-BepInExPack-5.4.2100",
+    "TheWeavers-LethalBestiary-1.2.1"
+  ],
+  "website_url": "https://github.com/FelixAllard/SCP173LC",
+  "FullName": "ProjectSCP-SCP173"
+}
